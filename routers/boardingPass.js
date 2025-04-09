@@ -3,6 +3,14 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 
+
+const tempDir = path.join(__dirname, '../temp');
+
+// Check if the 'temp' directory exists, if not, create it
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true }); // This will create the 'temp' directory and any necessary parent directories
+}
+
 const router = express.Router();
 
 // Route to generate boarding pass as a downloadable PDF (with data passed in the body)
