@@ -3,19 +3,18 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 
+// Define the path to the temp directory
+const tempDir = path.join(__dirname, 'public'); // Serving from 'public' directory
 
-const tempDir = path.join(__dirname, '../temp');
-
-// Check if the 'temp' directory exists, if not, create it
+// Ensure the 'public' directory exists or create it
 if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true }); // This will create the 'temp' directory and any necessary parent directories
+  fs.mkdirSync(tempDir, { recursive: true });
 }
 
 const router = express.Router();
 
-// Route to generate boarding pass as a downloadable PDF (with data passed in the body)
+// Route to generate boarding pass and return a URL for downloading the PDF
 router.post('/generate', (req, res) => {
-  // Destructure data from request body
   const {
     passengerName,
     flightNumber,
@@ -28,19 +27,21 @@ router.post('/generate', (req, res) => {
     ticketNumber,
   } = req.body;
 
-  // Validate the required fields
+  // Validate required fields
   if (!passengerName || !flightNumber || !departureAirport || !destinationAirport || !departureTime || !boardingTime || !gateNumber || !seatNumber || !ticketNumber) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
   // Create a new PDF document
   const doc = new PDFDocument();
-  const filePath = path.join(__dirname, '../temp', 'boarding_pass.pdf'); // Temporary path for storing the generated PDF
+  const fileName = 'boarding_pass.pdf';
+  const filePath = path.join(tempDir, fileName); // Save in the 'public' directory
 
-  // Pipe the PDF to a file
-  doc.pipe(fs.createWriteStream(filePath));
+  // Pipe the PDF document to the file
+  const writeStream = fs.createWriteStream(filePath);
+  doc.pipe(writeStream);
 
-  // Add the data to the PDF (boarding pass layout)
+  // Add data to the PDF
   doc.fontSize(20).font('Helvetica-Bold').text('Boarding Pass', { align: 'center' });
   doc.moveDown(1);
   doc.fontSize(12).font('Helvetica');
@@ -60,20 +61,22 @@ router.post('/generate', (req, res) => {
   // Finalize the document
   doc.end();
 
-  // Once the PDF is ready, send it as a download
-  doc.on('end', function () {
-    res.download(filePath, 'boarding_pass.pdf', (err) => {
-      if (err) {
-        console.error('Error downloading the file:', err);
-        return res.status(500).send('Error generating boarding pass.');
-      }
+  // Send the file URL once the PDF is fully written
+  writeStream.on('finish', () => {
+    // Return a URL like this
+    const fileUrl = `/boarding_pass/${fileName}`; // This will be accessible publicly via /boarding_pass/boarding_pass.pdf
 
-      // Clean up the generated PDF after sending it
-      fs.unlink(filePath, (err) => {
-        if (err) console.error('Error deleting the file:', err);
-      });
-    });
+    res.json({ message: 'Boarding pass generated', url: fileUrl });
+  });
+
+  // Handle any error during the PDF creation process
+  writeStream.on('error', (err) => {
+    console.error('Error writing the PDF:', err);
+    res.status(500).send('Error generating boarding pass.');
   });
 });
+
+// Serve the generated PDF from the 'public' directory
+router.use('/boarding_pass', express.static(tempDir));
 
 module.exports = router;
