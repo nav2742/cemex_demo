@@ -5,7 +5,7 @@ let months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 routes.post('/payslips', (req, res) => {
     let a = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
     
-    let months_from = req?.body?.Months || 0; 
+    let months_from = parseInt(req?.body?.Months || 0); 
     let date = new Date()
     let current_month = date.getMonth(); 
     let current_year = date.getFullYear();
